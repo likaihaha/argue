@@ -798,10 +798,15 @@
 
     const npcLines = {
       "反咬": ["那你昨天也拿过我的东西！", "你还说我，你自己也这样！", "明明是你先小气的！"],
+      "举例": ["上次你也是这样说的！", "刚才明明不是你说的那样。", "我记得你之前也做过。"],
+      "委屈化": ["你怎么每次都只说我！", "你们都只帮他说话。", "我也觉得很不公平啊。"],
       "转移话题": ["那你昨天不借我橡皮怎么算？", "你先说清楚上次那件事！", "反正你之前也不对。"],
       "装无辜": ["我又不是故意的，你干嘛一直说我！", "我只是看一下而已。", "你说得好像我欺负你一样。"],
       "贴标签": ["你就是小气！", "你怎么这么爱告状！", "你就会装有理。"],
+      "抓矛盾": ["你刚刚说的和现在也不一样。", "你自己前后说法也变了。", "那你先把你自己的话说清楚。"],
+      "诉诸规则": ["规则也没说只能按你那样做。", "那就按大家一开始说的来。", "你也要按规则，不能只说我。"],
       "诉诸权威": ["那我也去告诉老师！", "老师来了肯定也说你不对！", "我找班长评理。"],
+      "抢节奏": ["等一下，你先听我说完！", "你不要一直说，轮到我了！", "先别急着说我。"],
       "否认": ["我没有！", "不是我先的！", "我才没那样说。"],
       "终结句": ["反正我不还。", "我说不是就不是。", "你再说也没用。"]
     };
@@ -812,9 +817,11 @@
         style: "气势强，喜欢抢节奏和反咬，但被抓住矛盾后容易转移话题。",
         stats: { face: 6, right: 4, emotion: 7, logic: 4, audience: 5, tempo: 6 },
         fallback: ["反咬", "否认", "转移话题"],
+        strategyBias: { "反咬": 2.2, "贴标签": 1.4, "抢节奏": 1.2, "转移话题": .8 },
         lines: {
           "反咬": ["你还说我，你自己也拿过！", "那你先别管我，你之前也这样！"],
-          "转移话题": ["那你昨天不借我橡皮怎么算？", "反正你也有不对的时候。"]
+          "转移话题": ["那你昨天不借我橡皮怎么算？", "反正你也有不对的时候。"],
+          "抢节奏": ["你先别一直讲，听我说！"]
         }
       },
       innocent: {
@@ -822,6 +829,7 @@
         style: "会把责任说轻，争取旁观者同情，怕规则和证据。",
         stats: { face: 4, right: 5, emotion: 8, logic: 4, audience: 6, tempo: 4 },
         fallback: ["装无辜", "否认", "诉诸权威"],
+        strategyBias: { "装无辜": 2.4, "否认": 1.3, "诉诸权威": 1.2, "转移话题": .5 },
         lines: {
           "装无辜": ["我又不是故意的，你干嘛这么凶！", "我只是站了一下，你就一直说我。"],
           "诉诸权威": ["那就让老师来说，看谁对！"]
@@ -832,6 +840,7 @@
         style: "不想承认输，容易贴标签；如果被观众看见，会急着挽回气势。",
         stats: { face: 7, right: 4, emotion: 6, logic: 5, audience: 6, tempo: 5 },
         fallback: ["贴标签", "反咬", "终结句"],
+        strategyBias: { "贴标签": 2.2, "反咬": 1.5, "终结句": 1.2, "转移话题": .6 },
         lines: {
           "贴标签": ["你就会装厉害！", "你是不是输不起啊？"],
           "终结句": ["我说不是我的问题就不是。"]
@@ -842,9 +851,11 @@
         style: "会连续抛出新话题，逻辑不强，但节奏压迫感高。",
         stats: { face: 5, right: 4, emotion: 7, logic: 3, audience: 5, tempo: 8 },
         fallback: ["转移话题", "反咬", "贴标签"],
+        strategyBias: { "转移话题": 1.8, "抢节奏": 1.7, "反咬": 1.3, "贴标签": 1.0 },
         lines: {
           "转移话题": ["你先解释你刚才为什么那么说！", "还有上次那件事你也没说清楚。"],
-          "反咬": ["你越说越像你自己的问题。"]
+          "反咬": ["你越说越像你自己的问题。"],
+          "抢节奏": ["你别打断，我还没说完呢！"]
         }
       },
       ruleDucker: {
@@ -852,6 +863,7 @@
         style: "会避开规则细节，喜欢说别人也犯过错。",
         stats: { face: 5, right: 5, emotion: 6, logic: 4, audience: 4, tempo: 6 },
         fallback: ["转移话题", "装无辜", "反咬"],
+        strategyBias: { "装无辜": 1.6, "反咬": 1.5, "转移话题": 1.2, "否认": 1.0 },
         lines: {
           "转移话题": ["规则也没说得那么清楚啊。", "别人也这样，为什么只说我？"],
           "装无辜": ["我以为这样也可以。"]
@@ -944,7 +956,8 @@
       player: { face: 5, right: 5, emotion: 7, logic: 5, audience: 5, tempo: 5 },
       npc: { face: 6, right: 4, emotion: 7, logic: 4, audience: 5, tempo: 6 },
       lastPlayer: "",
-      lastNpc: "这是我的！你别抢！"
+      lastNpc: "这是我的！你别抢！",
+      npcMoveHistory: []
     };
 
     const el = {
@@ -1091,16 +1104,100 @@
       };
     }
 
-    function chooseNpcMove() {
+    function weightedPick(scores) {
+      const entries = Object.entries(scores)
+        .map(([move, score]) => [move, Math.max(.05, score)])
+        .filter(([, score]) => score > 0);
+      const total = entries.reduce((sum, [, score]) => sum + score, 0);
+      let roll = Math.random() * total;
+      for (const [move, score] of entries) {
+        roll -= score;
+        if (roll <= 0) return move;
+      }
+      return entries[0]?.[0] || "否认";
+    }
+
+    function chooseNpcMove(parsed = { moves: [] }) {
       const p = state.player;
       const n = state.npc;
       const npc = currentNpc();
-      if (n.right + 1 < p.right) return "转移话题";
-      if (n.face + 1 < p.face) return "贴标签";
-      if (n.audience < p.audience) return "装无辜";
-      if (n.emotion <= 3) return "终结句";
-      if (p.tempo > n.tempo) return "反咬";
-      return pick(npc.fallback);
+      const playerMoves = new Set(parsed.moves || []);
+      const scores = {
+        "否认": .7,
+        "反咬": .7,
+        "举例": .25,
+        "委屈化": .25,
+        "贴标签": .35,
+        "抓矛盾": .2,
+        "转移话题": .35,
+        "诉诸规则": .2,
+        "诉诸权威": .25,
+        "抢节奏": .4,
+        "装无辜": .35,
+        "终结句": .2
+      };
+
+      for (const [move, bias] of Object.entries(npc.strategyBias || {})) {
+        scores[move] = (scores[move] || 0) + bias;
+      }
+      for (const move of npc.fallback || []) {
+        scores[move] = (scores[move] || 0) + .45;
+      }
+
+      const rightGap = p.right - n.right;
+      const faceGap = p.face - n.face;
+      const audienceGap = p.audience - n.audience;
+      const tempoGap = p.tempo - n.tempo;
+
+      if (rightGap > 1) {
+        scores["否认"] += .8;
+        scores["反咬"] += .8;
+        scores["转移话题"] += .7;
+        scores["装无辜"] += .45;
+      }
+      if (faceGap > 1) {
+        scores["贴标签"] += 1.1;
+        scores["反咬"] += .55;
+        scores["终结句"] += .35;
+      }
+      if (audienceGap > 0) {
+        scores["装无辜"] += 1.0;
+        scores["诉诸权威"] += .55;
+      }
+      if (tempoGap > 0) {
+        scores["抢节奏"] += 1.0;
+        scores["反咬"] += .45;
+      }
+      if (n.emotion <= 3) {
+        scores["终结句"] += 1.4;
+        scores["贴标签"] += .8;
+      }
+
+      if (playerMoves.has("诉诸规则")) {
+        scores["装无辜"] += 1.0;
+        scores["否认"] += .5;
+        scores["转移话题"] -= .35;
+      }
+      if (playerMoves.has("抓矛盾")) {
+        scores["否认"] += .9;
+        scores["反咬"] += .55;
+        scores["转移话题"] += .25;
+      }
+      if (playerMoves.has("委屈化")) {
+        scores["装无辜"] += .75;
+        scores["贴标签"] += .45;
+      }
+      if (playerMoves.has("抢节奏")) {
+        scores["抢节奏"] += .65;
+        scores["反咬"] += .45;
+      }
+
+      const lastMove = state.npcMoveHistory.at(-1);
+      const repeatedTwice = state.npcMoveHistory.slice(-2).every(move => move === lastMove);
+      if (lastMove) scores[lastMove] -= repeatedTwice ? 1.6 : .9;
+      if (state.turn <= 2) scores["终结句"] -= .6;
+
+      return weightedPick(scores);
     }
 
     function renderAnalysis(parsed, playerDelta, npcMove) {
@@ -1250,7 +1347,7 @@ JSON 字段：line。`;
           tempo: -Math.max(0, (playerDelta.tempo || 0) * .20)
         });
 
-        const npcMove = chooseNpcMove();
+        const npcMove = chooseNpcMove(parsed);
         const npcLine = await generateNpcLine(npcMove, text);
         const npcDelta = combineEffects([npcMove]);
         applyDelta(state.npc, npcDelta, .9);
@@ -1261,6 +1358,8 @@ JSON 字段：line。`;
         });
 
         state.lastNpc = npcLine;
+        state.npcMoveHistory.push(npcMove);
+        state.npcMoveHistory = state.npcMoveHistory.slice(-4);
         addLog("npc", `第 ${state.turn} 回合 · NPC`, npcLine, `<span class="tag">${npcMove}</span>`);
         renderAnalysis(parsed, playerDelta, npcMove);
         state.turn += 1;
@@ -1289,7 +1388,8 @@ JSON 字段：line。`;
         player: { face: 5, right: 5, emotion: 7, logic: 5, audience: 5, tempo: 5 },
         npc: { ...npc.stats },
         lastPlayer: "",
-        lastNpc: scenario.opener
+        lastNpc: scenario.opener,
+        npcMoveHistory: []
       });
       el.log.innerHTML = "";
       el.analysisBox.innerHTML = `<div class="move-row"><span>等待玩家发言</span><span class="tag">未开始</span></div>`;
