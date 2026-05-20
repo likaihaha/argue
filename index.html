@@ -479,6 +479,44 @@
       display: grid;
     }
 
+    .release-notes {
+      margin-top: 16px;
+      border: 1px solid rgba(24, 32, 42, .15);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .82);
+      box-shadow: 0 10px 28px rgba(24, 32, 42, .08);
+      padding: 14px;
+    }
+
+    .release-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .release-head strong {
+      font-size: 16px;
+    }
+
+    .version-badge {
+      color: #fff;
+      background: var(--blue);
+      border-radius: 7px;
+      padding: 5px 8px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .release-notes ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
     .form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -769,9 +807,24 @@
         </section>
       </aside>
     </div>
+
+    <footer class="release-notes" aria-label="版本和更新日志">
+      <div class="release-head">
+        <strong>版本和更新日志</strong>
+        <span class="version-badge" id="versionBadge">v0.4.0</span>
+      </div>
+      <ul>
+        <li>v0.4.0：NPC 策略改为性格加权选择，避免每关都只转移话题。</li>
+        <li>v0.3.0：新增 5 个关卡、5 类 NPC 性格、动态提示话术。</li>
+        <li>v0.2.0：加入 LLM 模式提示和 `/api/llm` 后端代理示例。</li>
+        <li>v0.1.0：完成单场景争执原型、数值结算和本地句库模式。</li>
+      </ul>
+    </footer>
   </main>
 
   <script>
+    const appVersion = "v0.4.0";
+
     const labels = {
       face: "面子",
       right: "有理",
@@ -1262,12 +1315,12 @@
       const usingModel = el.llmToggle.checked;
       const endpoint = el.endpointInput.value.trim();
       if (message) {
-        el.modelStatus.textContent = message;
+        el.modelStatus.textContent = `${appVersion} · ${message}`;
         return;
       }
       el.modelStatus.textContent = usingModel
-        ? `当前：LLM 模式，将请求 ${endpoint || "未配置 endpoint"}。`
-        : "当前：本地句库模式。开启后会调用上面的 endpoint。";
+        ? `${appVersion} · 当前：LLM 模式，将请求 ${endpoint || "未配置 endpoint"}。`
+        : `${appVersion} · 当前：本地句库模式。开启后会调用上面的 endpoint。`;
     }
 
     async function parsePlayer(text) {
