@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>小小争执场</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18202a;
+      --muted: #657080;
+      --line: #d9e0e7;
+      --paper: #fbfcf8;
+      --panel: #ffffff;
+      --player: #167a72;
+      --npc: #b83f4c;
+      --accent: #d9972b;
+      --blue: #3867b7;
+      --green: #2f8a50;
+      --red: #c14448;
+      --shadow: 0 18px 48px rgba(24, 32, 42, .12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(217, 151, 43, .16), transparent 22rem),
+        radial-gradient(circle at 88% 10%, rgba(22, 122, 114, .14), transparent 24rem),
+        linear-gradient(180deg, #f5f1e8 0%, #eef5f0 58%, #edf1f7 100%);
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 22px 0 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 46px;
+      height: 46px;
+      flex: 0 0 auto;
+      border: 2px solid var(--ink);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #fff6df;
+      box-shadow: 5px 5px 0 rgba(24, 32, 42, .14);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 34px);
+      letter-spacing: 0;
+      line-height: 1.05;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .icon-btn,
+    .primary-btn,
+    .small-btn {
+      min-height: 40px;
+      border-radius: 8px;
+      border: 1px solid rgba(24, 32, 42, .16);
+      background: var(--panel);
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 13px;
+      box-shadow: 0 6px 18px rgba(24, 32, 42, .08);
+    }
+
+    .primary-btn {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+
+    .small-btn {
+      min-height: 32px;
+      padding: 0 10px;
+      box-shadow: none;
+      font-size: 13px;
+    }
+
+    .icon-btn svg,
+    .small-btn svg,
+    .primary-btn svg {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .arena {
+      min-width: 0;
+    }
+
+    .stage {
+      position: relative;
+      overflow: hidden;
+      border: 2px solid rgba(24, 32, 42, .16);
+      border-radius: 8px;
+      background:
+        linear-gradient(0deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .72)),
+        repeating-linear-gradient(90deg, transparent 0 36px, rgba(24, 32, 42, .035) 36px 38px),
+        #e7efe7;
+      box-shadow: var(--shadow);
+    }
+
+    .stage-floor {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 24%;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,.38)),
+        repeating-linear-gradient(45deg, #d2c4a8 0 18px, #cabb9e 18px 20px);
+      border-top: 2px solid rgba(24, 32, 42, .1);
+    }
+
+    .fighters {
+      position: relative;
+      z-index: 1;
+      min-height: 370px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: end;
+      padding: 24px 24px 28px;
+    }
+
+    .fighter {
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
+    .speech {
+      width: min(100%, 330px);
+      min-height: 86px;
+      border: 2px solid rgba(24, 32, 42, .22);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .92);
+      padding: 12px 13px;
+      box-shadow: 7px 7px 0 rgba(24, 32, 42, .08);
+      display: grid;
+      align-content: center;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .fighter.npc .speech {
+      border-color: rgba(184, 63, 76, .38);
+    }
+
+    .fighter.player .speech {
+      border-color: rgba(22, 122, 114, .38);
+    }
+
+    .avatar {
+      width: min(210px, 38vw);
+      max-width: 100%;
+      aspect-ratio: 1 / 1.08;
+      filter: drop-shadow(0 12px 14px rgba(24, 32, 42, .16));
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .score-card,
+    .panel,
+    .settings {
+      border: 1px solid rgba(24, 32, 42, .15);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .86);
+      box-shadow: 0 12px 32px rgba(24, 32, 42, .09);
+    }
+
+    .score-card {
+      padding: 14px;
+    }
+
+    .score-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .score-head strong {
+      font-size: 17px;
+    }
+
+    .score-pill {
+      font-size: 13px;
+      color: #fff;
+      background: var(--ink);
+      padding: 5px 8px;
+      border-radius: 7px;
+      white-space: nowrap;
+    }
+
+    .meter {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) 28px;
+      gap: 8px;
+      align-items: center;
+      min-height: 26px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .bar {
+      height: 10px;
+      border-radius: 999px;
+      background: #e6eaee;
+      overflow: hidden;
+      border: 1px solid rgba(24, 32, 42, .08);
+    }
+
+    .fill {
+      display: block;
+      height: 100%;
+      width: 50%;
+      background: var(--player);
+      transition: width .28s ease;
+    }
+
+    .npc-fill {
+      background: var(--npc);
+    }
+
+    .side {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .panel {
+      padding: 14px;
+    }
+
+    .panel h2 {
+      margin: 0 0 11px;
+      font-size: 17px;
+    }
+
+    .input-area {
+      display: grid;
+      gap: 10px;
+    }
+
+    textarea {
+      min-height: 126px;
+      width: 100%;
+      resize: vertical;
+      border: 1px solid rgba(24, 32, 42, .2);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      color: var(--ink);
+      line-height: 1.45;
+      outline: none;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      border-color: var(--player);
+      box-shadow: 0 0 0 3px rgba(22, 122, 114, .16);
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      border-radius: 999px;
+      background: #f1f4f2;
+      border: 1px solid rgba(24, 32, 42, .12);
+      padding: 7px 10px;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .chip.active {
+      background: #dff0ea;
+      border-color: rgba(22, 122, 114, .38);
+      color: #105c55;
+    }
+
+    .analysis-box {
+      min-height: 128px;
+      display: grid;
+      gap: 9px;
+      align-content: start;
+    }
+
+    .move-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(24, 32, 42, .08);
+      padding-bottom: 8px;
+    }
+
+    .move-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      background: #edf2f7;
+      color: #344154;
+      border-radius: 7px;
+      padding: 4px 7px;
+      font-size: 12px;
+    }
+
+    .tag.warn {
+      background: #ffe8d6;
+      color: #9b4618;
+    }
+
+    .log {
+      max-height: 314px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+      padding-right: 3px;
+    }
+
+    .turn {
+      border-left: 4px solid var(--line);
+      background: rgba(255, 255, 255, .72);
+      padding: 9px 10px;
+      border-radius: 0 8px 8px 0;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .turn.player {
+      border-left-color: var(--player);
+    }
+
+    .turn.npc {
+      border-left-color: var(--npc);
+    }
+
+    .turn.system {
+      border-left-color: var(--accent);
+    }
+
+    .turn strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .settings {
+      padding: 14px;
+      display: none;
+      gap: 12px;
+    }
+
+    .settings.open {
+      display: grid;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid rgba(24, 32, 42, .2);
+      border-radius: 8px;
+      padding: 7px 9px;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0 0;
+      border-top: 1px solid rgba(24, 32, 42, .1);
+    }
+
+    .switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      inset: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #ccd4dc;
+      transition: background .2s ease;
+    }
+
+    .slider::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 3px;
+      top: 3px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform .2s ease;
+      box-shadow: 0 2px 6px rgba(24, 32, 42, .24);
+    }
+
+    .switch input:checked + .slider {
+      background: var(--player);
+    }
+
+    .switch input:checked + .slider::after {
+      transform: translateX(22px);
+    }
+
+    .result-banner {
+      display: none;
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #fff;
+      background: var(--ink);
+      line-height: 1.45;
+      box-shadow: var(--shadow);
+    }
+
+    .result-banner.show {
+      display: block;
+    }
+
+    .loading {
+      opacity: .72;
+      pointer-events: none;
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .fighters {
+        min-height: 330px;
+      }
+
+      .status-grid,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .app {
+        width: min(100% - 20px, 1240px);
+        padding-top: 14px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        justify-content: flex-start;
+      }
+
+      .fighters {
+        grid-template-columns: 1fr;
+        gap: 4px;
+        padding: 16px 14px 22px;
+      }
+
+      .avatar {
+        width: min(168px, 56vw);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="34" height="34" fill="none">
+            <path d="M12 18h27c7 0 12 5 12 11s-5 11-12 11H28L15 51l4-11h-7C6 40 2 35 2 29s4-11 10-11Z" fill="#fff" stroke="#18202a" stroke-width="4" stroke-linejoin="round"/>
+            <path d="M18 29h18M42 29h4" stroke="#18202a" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1>小小争执场</h1>
+          <p>语言招式、情绪资源、旁观者倾向与节奏控制</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="icon-btn" id="settingsBtn" title="模型设置" aria-label="模型设置">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M19.4 15a8 8 0 0 0 .1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1l-.3-2.6h-4l-.3 2.6a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1l.3 2.6h4l.3-2.6a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2.2-1.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+          模型
+        </button>
+        <button class="icon-btn" id="resetBtn" title="重新开始" aria-label="重新开始">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 4v6h6M20 20v-6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 14a7 7 0 0 0 12 3l3-3M19 10A7 7 0 0 0 7 7l-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          重开
+        </button>
+      </div>
+    </header>
+
+    <section class="settings" id="settingsPanel" aria-label="模型设置">
+      <div class="form-grid">
+        <label class="wide">
+          OpenAI-compatible Endpoint
+          <input id="endpointInput" value="http://localhost:11434/v1/chat/completions" autocomplete="off">
+        </label>
+        <label>
+          Model
+          <input id="modelInput" value="qwen2.5:7b" autocomplete="off">
+        </label>
+        <label>
+          API Key
+          <input id="apiKeyInput" type="password" placeholder="本地模型可留空" autocomplete="off">
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <strong>大模型解析</strong>
+          <div style="color: var(--muted); font-size: 13px; margin-top: 3px;">关闭时使用本地规则，开启后由 LLM 解析招式与生成 NPC 台词。</div>
+        </div>
+        <label class="switch" aria-label="启用大模型">
+          <input id="llmToggle" type="checkbox">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="arena" aria-label="争执场">
+        <div class="result-banner" id="resultBanner"></div>
+
+        <div class="stage">
+          <div class="fighters">
+            <div class="fighter player">
+              <div class="speech" id="playerSpeech">轮到你了。先稳住，再找对方话里的漏洞。</div>
+              <svg class="avatar" viewBox="0 0 220 240" aria-label="玩家角色">
+                <path d="M62 216c3-42 22-65 50-65s47 23 50 65H62Z" fill="#167a72" stroke="#18202a" stroke-width="5" stroke-linejoin="round"/>
+                <path d="M76 88c0-40 28-66 66-54 21 7 35 27 35 54 0 36-23 63-51 63S76 124 76 88Z" fill="#f6c995" stroke="#18202a" stroke-width="5"/>
+                <path d="M74 83c-2-25 12-46 36-55 26-10 55 2 66 27-24-2-46-8-67-23-13 11-24 26-35 51Z" fill="#374151" stroke="#18202a" stroke-width="5" stroke-linejoin="round"/>
+                <path d="M100 95h1M147 95h1" stroke="#18202a" stroke-width="7" stroke-linecap="round"/>
+                <path d="M111 124c11 7 24 7 35 0" stroke="#18202a" stroke-width="5" stroke-linecap="round"/>
+                <path d="M70 184l-31 15M154 184l31 15" stroke="#18202a" stroke-width="5" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div class="fighter npc">
+              <div class="speech" id="npcSpeech">“这是我的！你别抢！”</div>
+              <svg class="avatar" viewBox="0 0 220 240" aria-label="NPC角色">
+                <path d="M60 216c2-43 24-66 53-66s50 23 53 66H60Z" fill="#b83f4c" stroke="#18202a" stroke-width="5" stroke-linejoin="round"/>
+                <path d="M72 90c0-36 23-62 57-62s57 26 57 62c0 35-25 62-57 62S72 125 72 90Z" fill="#f4bc8c" stroke="#18202a" stroke-width="5"/>
+                <path d="M69 84c4-38 28-61 63-61 27 0 48 17 55 47-34 3-64-6-91-25-9 8-18 21-27 39Z" fill="#7b3f28" stroke="#18202a" stroke-width="5" stroke-linejoin="round"/>
+                <path d="M101 98h1M151 98h1" stroke="#18202a" stroke-width="7" stroke-linecap="round"/>
+                <path d="M111 128c14-8 29-8 43 0" stroke="#18202a" stroke-width="5" stroke-linecap="round"/>
+                <path d="M73 184l-34-10M157 184l34-10" stroke="#18202a" stroke-width="5" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stage-floor"></div>
+        </div>
+
+        <div class="status-grid">
+          <article class="score-card">
+            <div class="score-head">
+              <strong>玩家</strong>
+              <span class="score-pill" id="playerScore">胜势 5.0</span>
+            </div>
+            <div id="playerMeters"></div>
+          </article>
+          <article class="score-card">
+            <div class="score-head">
+              <strong>NPC：霸道型</strong>
+              <span class="score-pill" id="npcScore">胜势 5.0</span>
+            </div>
+            <div id="npcMeters"></div>
+          </article>
+        </div>
+      </section>
+
+      <aside class="side">
+        <section class="panel">
+          <h2>出招</h2>
+          <div class="input-area">
+            <textarea id="playerInput" placeholder="例如：你刚刚还说这是你的，现在又说你先看到的，你自己都改口了。"></textarea>
+            <div class="chips" id="hintChips">
+              <button class="chip" data-fill="你别转移话题，刚刚是你先拿走的。">抢节奏</button>
+              <button class="chip" data-fill="大家都看到了，我只是想按规则轮流。">争观众</button>
+              <button class="chip" data-fill="你刚才说是你的，现在又说先看到，你自己都改口了。">抓矛盾</button>
+              <button class="chip" data-fill="如果你没先抢，我也不会来要回来。">反转责任</button>
+            </div>
+            <button class="primary-btn" id="sendBtn">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M22 2 11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="m22 2-7 20-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              </svg>
+              回应
+            </button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>本回合解析</h2>
+          <div class="analysis-box" id="analysisBox">
+            <div class="move-row">
+              <span>等待玩家发言</span>
+              <span class="tag">未开始</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>对局记录</h2>
+          <div class="log" id="log"></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const labels = {
+      face: "面子",
+      right: "有理",
+      emotion: "情绪",
+      logic: "逻辑",
+      audience: "观众",
+      tempo: "节奏"
+    };
+
+    const moveEffects = {
+      "否认": { face: 0, right: 1, emotion: 0, logic: 0, audience: 0, tempo: 0 },
+      "反咬": { face: 2, right: 1, emotion: -1, logic: 0, audience: 0, tempo: 2 },
+      "举例": { face: 0, right: 3, emotion: 0, logic: 2, audience: 1, tempo: -1 },
+      "委屈化": { face: -1, right: 1, emotion: -1, logic: -1, audience: 3, tempo: 0 },
+      "贴标签": { face: 2, right: -1, emotion: -1, logic: -2, audience: -1, tempo: 1 },
+      "抓矛盾": { face: 1, right: 3, emotion: 0, logic: 3, audience: 1, tempo: 1 },
+      "转移话题": { face: 0, right: -1, emotion: 0, logic: -2, audience: -1, tempo: 2 },
+      "诉诸规则": { face: 0, right: 3, emotion: 0, logic: 2, audience: 2, tempo: 0 },
+      "诉诸权威": { face: 3, right: 1, emotion: 0, logic: 0, audience: 2, tempo: -1 },
+      "抢节奏": { face: 1, right: 1, emotion: 0, logic: 1, audience: 0, tempo: 3 },
+      "装无辜": { face: -1, right: 1, emotion: 1, logic: -1, audience: 2, tempo: 0 },
+      "终结句": { face: 2, right: 0, emotion: 0, logic: -1, audience: 0, tempo: 2 }
+    };
+
+    const npcLines = {
+      "反咬": ["那你昨天也拿过我的东西！", "你还说我，你自己也这样！", "明明是你先小气的！"],
+      "转移话题": ["那你昨天不借我橡皮怎么算？", "你先说清楚上次那件事！", "反正你之前也不对。"],
+      "装无辜": ["我又不是故意的，你干嘛一直说我！", "我只是看一下而已。", "你说得好像我欺负你一样。"],
+      "贴标签": ["你就是小气！", "你怎么这么爱告状！", "你就会装有理。"],
+      "诉诸权威": ["那我也去告诉老师！", "老师来了肯定也说你不对！", "我找班长评理。"],
+      "否认": ["我没有！", "不是我先的！", "我才没那样说。"],
+      "终结句": ["反正我不还。", "我说不是就不是。", "你再说也没用。"]
+    };
+
+    const state = {
+      turn: 1,
+      over: false,
+      player: { face: 5, right: 5, emotion: 7, logic: 5, audience: 5, tempo: 5 },
+      npc: { face: 6, right: 4, emotion: 7, logic: 4, audience: 5, tempo: 6 },
+      lastPlayer: "",
+      lastNpc: "这是我的！你别抢！"
+    };
+
+    const el = {
+      playerMeters: document.querySelector("#playerMeters"),
+      npcMeters: document.querySelector("#npcMeters"),
+      playerScore: document.querySelector("#playerScore"),
+      npcScore: document.querySelector("#npcScore"),
+      playerInput: document.querySelector("#playerInput"),
+      sendBtn: document.querySelector("#sendBtn"),
+      resetBtn: document.querySelector("#resetBtn"),
+      settingsBtn: document.querySelector("#settingsBtn"),
+      settingsPanel: document.querySelector("#settingsPanel"),
+      endpointInput: document.querySelector("#endpointInput"),
+      modelInput: document.querySelector("#modelInput"),
+      apiKeyInput: document.querySelector("#apiKeyInput"),
+      llmToggle: document.querySelector("#llmToggle"),
+      analysisBox: document.querySelector("#analysisBox"),
+      log: document.querySelector("#log"),
+      playerSpeech: document.querySelector("#playerSpeech"),
+      npcSpeech: document.querySelector("#npcSpeech"),
+      resultBanner: document.querySelector("#resultBanner")
+    };
+
+    const clamp = value => Math.max(0, Math.min(10, Number(value) || 0));
+    const pick = list => list[Math.floor(Math.random() * list.length)];
+
+    function winScore(s) {
+      return (s.face * .24) + (s.right * .24) + (s.audience * .18) + (s.tempo * .16) + (s.emotion * .10) + (s.logic * .08);
+    }
+
+    function addLog(kind, title, text, meta = "") {
+      const row = document.createElement("div");
+      row.className = `turn ${kind}`;
+      row.innerHTML = `<strong>${title}</strong><span>${escapeHtml(text)}</span>${meta ? `<div class="tags" style="margin-top: 6px;">${meta}</div>` : ""}`;
+      el.log.prepend(row);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function renderMeters(root, actor, npc = false) {
+      root.innerHTML = Object.keys(labels).map(key => {
+        const value = clamp(actor[key]);
+        return `
+          <div class="meter">
+            <span>${labels[key]}</span>
+            <span class="bar"><span class="fill ${npc ? "npc-fill" : ""}" style="width:${value * 10}%"></span></span>
+            <span>${value.toFixed(0)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function render() {
+      renderMeters(el.playerMeters, state.player, false);
+      renderMeters(el.npcMeters, state.npc, true);
+      el.playerScore.textContent = `胜势 ${winScore(state.player).toFixed(1)}`;
+      el.npcScore.textContent = `胜势 ${winScore(state.npc).toFixed(1)}`;
+      el.playerSpeech.textContent = state.lastPlayer || "轮到你了。先稳住，再找对方话里的漏洞。";
+      el.npcSpeech.textContent = `“${state.lastNpc}”`;
+    }
+
+    function applyDelta(target, delta, multiplier = 1) {
+      Object.keys(labels).forEach(key => {
+        target[key] = clamp(target[key] + ((delta[key] || 0) * multiplier));
+      });
+    }
+
+    function combineEffects(moves) {
+      return moves.reduce((sum, move) => {
+        const fx = moveEffects[move] || {};
+        Object.keys(labels).forEach(key => sum[key] = (sum[key] || 0) + (fx[key] || 0));
+        return sum;
+      }, {});
+    }
+
+    function heuristicParse(text) {
+      const moves = [];
+      const add = move => {
+        if (!moves.includes(move) && moves.length < 3) moves.push(move);
+      };
+
+      if (/改口|说漏|矛盾|刚.*现在|刚才.*现在|自己都/.test(text)) add("抓矛盾");
+      if (/别转移|等一下|我说的是|先说清楚/.test(text)) add("抢节奏");
+      if (/规则|轮流|公平|本来|按/.test(text)) add("诉诸规则");
+      if (/没有|不是我|我没|才没/.test(text)) add("否认");
+      if (/你先|明明是你|你自己|如果你没|还说我/.test(text)) add("反咬");
+      if (/刚才|刚刚|上次|昨天|之前|第.*次|说了/.test(text)) add("举例");
+      if (/每次|一直|凭什么|委屈|只是想/.test(text)) add("委屈化");
+      if (/小气|骗人|装|心虚|赖皮/.test(text)) add("贴标签");
+      if (/老师|班长|家长|告诉/.test(text)) add("诉诸权威");
+      if (/反正|就是|不用说了|结束/.test(text)) add("终结句");
+      if (moves.length === 0) add(text.length > 26 ? "举例" : "否认");
+
+      const toxic = /傻|笨|滚|打|死|丑|废物|垃圾/.test(text) ? .72 : .1;
+      return {
+        moves,
+        tone: toxic > .5 ? "过激" : "稳定",
+        logic_quality: moves.includes("抓矛盾") || moves.includes("诉诸规则") ? .82 : .58,
+        emotion_level: moves.includes("贴标签") || moves.includes("委屈化") ? .72 : .42,
+        audience_appeal: moves.includes("委屈化") || moves.includes("诉诸规则") ? .78 : .42,
+        tempo_control: moves.includes("抢节奏") || moves.includes("反咬") ? .75 : .48,
+        toxicity_risk: toxic,
+        coaching: "本地解析：根据关键词映射为语言招式。"
+      };
+    }
+
+    function chooseNpcMove() {
+      const p = state.player;
+      const n = state.npc;
+      if (n.right + 1 < p.right) return "转移话题";
+      if (n.face + 1 < p.face) return "贴标签";
+      if (n.audience < p.audience) return "装无辜";
+      if (n.emotion <= 3) return "终结句";
+      if (p.tempo > n.tempo) return "反咬";
+      return pick(["反咬", "否认", "转移话题"]);
+    }
+
+    function renderAnalysis(parsed, playerDelta, npcMove) {
+      const deltaTags = Object.keys(labels)
+        .map(key => {
+          const value = playerDelta[key] || 0;
+          if (!value) return "";
+          const sign = value > 0 ? "+" : "";
+          return `<span class="tag">${labels[key]} ${sign}${value}</span>`;
+        })
+        .filter(Boolean)
+        .join("");
+
+      el.analysisBox.innerHTML = `
+        <div class="move-row">
+          <span>玩家招式</span>
+          <div class="tags">${parsed.moves.map(m => `<span class="tag">${m}</span>`).join("")}</div>
+        </div>
+        <div class="move-row">
+          <span>数值变化</span>
+          <div class="tags">${deltaTags || `<span class="tag">无明显变化</span>`}</div>
+        </div>
+        <div class="move-row">
+          <span>NPC策略</span>
+          <span class="tag">${npcMove}</span>
+        </div>
+        <div class="move-row">
+          <span>风险</span>
+          <span class="tag ${parsed.toxicity_risk > .45 ? "warn" : ""}">${Math.round((parsed.toxicity_risk || 0) * 100)}%</span>
+        </div>
+      `;
+    }
+
+    async function callChat(messages, json = true) {
+      const endpoint = el.endpointInput.value.trim();
+      const model = el.modelInput.value.trim();
+      const apiKey = el.apiKeyInput.value.trim();
+      if (!endpoint || !model) throw new Error("模型配置不完整");
+
+      const headers = { "Content-Type": "application/json" };
+      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+      const body = {
+        model,
+        messages,
+        temperature: .55
+      };
+      if (json) body.response_format = { type: "json_object" };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error(`模型请求失败：${res.status}`);
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content || data.output_text || "";
+      return json ? JSON.parse(content.replace(/^```json|```$/g, "").trim()) : content.trim();
+    }
+
+    async function parsePlayer(text) {
+      if (!el.llmToggle.checked) return heuristicParse(text);
+      const schemaPrompt = `你是儿童语言争执游戏的解析器。只输出 JSON，不决定胜负，不鼓励辱骂。
+可选招式：否认、反咬、举例、委屈化、贴标签、抓矛盾、转移话题、诉诸规则、诉诸权威、抢节奏、装无辜、终结句。
+字段：moves 数组最多3个，tone 字符串，logic_quality/emotion_level/audience_appeal/tempo_control/toxicity_risk 为0到1数字，coaching 为一句简短中文点评。`;
+
+      const result = await callChat([
+        { role: "system", content: schemaPrompt },
+        { role: "user", content: text }
+      ]);
+      const validMoves = Object.keys(moveEffects);
+      result.moves = (result.moves || []).filter(move => validMoves.includes(move)).slice(0, 3);
+      if (!result.moves.length) result.moves = heuristicParse(text).moves;
+      return { ...heuristicParse(text), ...result };
+    }
+
+    async function generateNpcLine(npcMove, playerText) {
+      if (!el.llmToggle.checked) return pick(npcLines[npcMove] || npcLines["反咬"]);
+      const prompt = `你正在扮演儿童语言争执游戏里的 NPC。只输出 JSON。
+NPC性格：霸道但怕丢面子。当前策略：${npcMove}。
+要求：台词像小孩说话；每次一句；不要仇恨、严重侮辱、暴力威胁或成人化羞辱；不要决定胜负。
+JSON 字段：line。`;
+      const result = await callChat([
+        { role: "system", content: prompt },
+        { role: "user", content: `玩家刚说：${playerText}` }
+      ]);
+      return String(result.line || pick(npcLines[npcMove] || npcLines["反咬"])).slice(0, 80);
+    }
+
+    function checkResult() {
+      const p = winScore(state.player);
+      const n = winScore(state.npc);
+      let message = "";
+
+      if (state.npc.emotion <= 0) message = "你赢了：NPC 情绪失控，已经接不住你的话。";
+      else if (state.player.emotion <= 0) message = "你输了：你的情绪先崩了，旁观者开始偏向 NPC。";
+      else if (p - n >= 4.0) message = "你赢了：你同时掌握了有理、节奏和旁观者支持。";
+      else if (n - p >= 4.0) message = "你输了：NPC 把话题和气势都抢走了。";
+      else if (state.turn > 8) message = p >= n ? "你小胜：争执拖久了，但你的胜势更高。" : "NPC 小胜：你没有在前几轮建立优势。";
+
+      if (message) {
+        state.over = true;
+        el.resultBanner.textContent = message;
+        el.resultBanner.classList.add("show");
+        addLog("system", "结算", message);
+      }
+    }
+
+    async function playTurn() {
+      const text = el.playerInput.value.trim();
+      if (!text || state.over) return;
+
+      document.body.classList.add("loading");
+      el.sendBtn.disabled = true;
+
+      try {
+        state.lastPlayer = text;
+        addLog("player", `第 ${state.turn} 回合 · 玩家`, text);
+
+        const parsed = await parsePlayer(text);
+        const playerDelta = combineEffects(parsed.moves);
+        if ((parsed.toxicity_risk || 0) > .55) {
+          playerDelta.audience = (playerDelta.audience || 0) - 3;
+          playerDelta.logic = (playerDelta.logic || 0) - 2;
+          playerDelta.emotion = (playerDelta.emotion || 0) - 1;
+        }
+        applyDelta(state.player, playerDelta);
+        applyDelta(state.npc, {
+          face: -Math.max(0, (playerDelta.right || 0) * .35),
+          emotion: -Math.max(0, (playerDelta.face || 0) * .25),
+          tempo: -Math.max(0, (playerDelta.tempo || 0) * .20)
+        });
+
+        const npcMove = chooseNpcMove();
+        const npcLine = await generateNpcLine(npcMove, text);
+        const npcDelta = combineEffects([npcMove]);
+        applyDelta(state.npc, npcDelta, .9);
+        applyDelta(state.player, {
+          face: -Math.max(0, (npcDelta.right || 0) * .25),
+          emotion: -Math.max(0, (npcDelta.face || 0) * .18),
+          tempo: -Math.max(0, (npcDelta.tempo || 0) * .16)
+        });
+
+        state.lastNpc = npcLine;
+        addLog("npc", `第 ${state.turn} 回合 · NPC`, npcLine, `<span class="tag">${npcMove}</span>`);
+        renderAnalysis(parsed, playerDelta, npcMove);
+        state.turn += 1;
+        el.playerInput.value = "";
+        render();
+        checkResult();
+      } catch (error) {
+        const fallback = heuristicParse(text);
+        el.llmToggle.checked = false;
+        addLog("system", "模型连接失败，已切回本地规则", error.message);
+        renderAnalysis(fallback, combineEffects(fallback.moves), "否认");
+      } finally {
+        document.body.classList.remove("loading");
+        el.sendBtn.disabled = false;
+      }
+    }
+
+    function resetGame() {
+      Object.assign(state, {
+        turn: 1,
+        over: false,
+        player: { face: 5, right: 5, emotion: 7, logic: 5, audience: 5, tempo: 5 },
+        npc: { face: 6, right: 4, emotion: 7, logic: 4, audience: 5, tempo: 6 },
+        lastPlayer: "",
+        lastNpc: "这是我的！你别抢！"
+      });
+      el.log.innerHTML = "";
+      el.analysisBox.innerHTML = `<div class="move-row"><span>等待玩家发言</span><span class="tag">未开始</span></div>`;
+      el.resultBanner.classList.remove("show");
+      el.playerInput.value = "";
+      addLog("system", "场景", "NPC 抢了玩具，还说是自己的。");
+      render();
+    }
+
+    document.querySelector("#hintChips").addEventListener("click", event => {
+      const button = event.target.closest("button[data-fill]");
+      if (!button) return;
+      el.playerInput.value = button.dataset.fill;
+      document.querySelectorAll(".chip").forEach(chip => chip.classList.remove("active"));
+      button.classList.add("active");
+      el.playerInput.focus();
+    });
+
+    el.sendBtn.addEventListener("click", playTurn);
+    el.playerInput.addEventListener("keydown", event => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) playTurn();
+    });
+    el.resetBtn.addEventListener("click", resetGame);
+    el.settingsBtn.addEventListener("click", () => el.settingsPanel.classList.toggle("open"));
+
+    ["endpointInput", "modelInput", "apiKeyInput", "llmToggle"].forEach(id => {
+      const node = el[id];
+      const key = `argue-${id}`;
+      const saved = sessionStorage.getItem(key);
+      if (saved !== null) {
+        if (node.type === "checkbox") node.checked = saved === "true";
+        else node.value = saved;
+      }
+      node.addEventListener("change", () => sessionStorage.setItem(key, node.type === "checkbox" ? node.checked : node.value));
+      node.addEventListener("input", () => {
+        if (node.type !== "checkbox") sessionStorage.setItem(key, node.value);
+      });
+    });
+
+    resetGame();
+  </script>
+</body>
+</html>
