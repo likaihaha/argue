@@ -337,6 +337,49 @@
       flex-wrap: wrap;
     }
 
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .scenario-card {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(24, 32, 42, .14);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px 11px;
+      display: grid;
+      gap: 5px;
+      color: var(--ink);
+    }
+
+    .scenario-card.active {
+      border-color: rgba(22, 122, 114, .48);
+      background: #eaf6f2;
+      box-shadow: inset 4px 0 0 var(--player);
+    }
+
+    .scenario-card strong {
+      font-size: 14px;
+    }
+
+    .scenario-card span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .brief {
+      border-top: 1px solid rgba(24, 32, 42, .1);
+      margin-top: 10px;
+      padding-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .chip {
       border-radius: 999px;
       background: #f1f4f2;
@@ -614,21 +657,21 @@
       <div class="form-grid">
         <label class="wide">
           OpenAI-compatible Endpoint
-          <input id="endpointInput" value="http://localhost:11434/v1/chat/completions" autocomplete="off">
+          <input id="endpointInput" value="/api/llm" autocomplete="off">
         </label>
         <label>
           Model
-          <input id="modelInput" value="qwen2.5:7b" autocomplete="off">
+          <input id="modelInput" value="gpt-5.4-mini" autocomplete="off">
         </label>
         <label>
           API Key
-          <input id="apiKeyInput" type="password" placeholder="本地模型可留空" autocomplete="off">
+          <input id="apiKeyInput" type="password" placeholder="后端代理可留空；公开网页不要填真实 key" autocomplete="off">
         </label>
       </div>
       <div class="toggle-row">
         <div>
           <strong>大模型解析</strong>
-          <div style="color: var(--muted); font-size: 13px; margin-top: 3px;">关闭时使用本地规则，开启后由 LLM 解析招式与生成 NPC 台词。</div>
+          <div id="modelStatus" style="color: var(--muted); font-size: 13px; margin-top: 3px;">当前：本地句库模式。开启后会调用上面的 endpoint。</div>
         </div>
         <label class="switch" aria-label="启用大模型">
           <input id="llmToggle" type="checkbox">
@@ -680,7 +723,7 @@
           </article>
           <article class="score-card">
             <div class="score-head">
-              <strong>NPC：霸道型</strong>
+              <strong id="npcName">NPC：霸道型</strong>
               <span class="score-pill" id="npcScore">胜势 5.0</span>
             </div>
             <div id="npcMeters"></div>
@@ -690,15 +733,16 @@
 
       <aside class="side">
         <section class="panel">
+          <h2>关卡</h2>
+          <div class="scenario-grid" id="scenarioGrid"></div>
+          <div class="brief" id="scenarioBrief"></div>
+        </section>
+
+        <section class="panel">
           <h2>出招</h2>
           <div class="input-area">
             <textarea id="playerInput" placeholder="例如：你刚刚还说这是你的，现在又说你先看到的，你自己都改口了。"></textarea>
-            <div class="chips" id="hintChips">
-              <button class="chip" data-fill="你别转移话题，刚刚是你先拿走的。">抢节奏</button>
-              <button class="chip" data-fill="大家都看到了，我只是想按规则轮流。">争观众</button>
-              <button class="chip" data-fill="你刚才说是你的，现在又说先看到，你自己都改口了。">抓矛盾</button>
-              <button class="chip" data-fill="如果你没先抢，我也不会来要回来。">反转责任</button>
-            </div>
+            <div class="chips" id="hintChips"></div>
             <button class="primary-btn" id="sendBtn">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M22 2 11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -762,7 +806,139 @@
       "终结句": ["反正我不还。", "我说不是就不是。", "你再说也没用。"]
     };
 
+    const npcProfiles = {
+      bully: {
+        name: "霸道型",
+        style: "气势强，喜欢抢节奏和反咬，但被抓住矛盾后容易转移话题。",
+        stats: { face: 6, right: 4, emotion: 7, logic: 4, audience: 5, tempo: 6 },
+        fallback: ["反咬", "否认", "转移话题"],
+        lines: {
+          "反咬": ["你还说我，你自己也拿过！", "那你先别管我，你之前也这样！"],
+          "转移话题": ["那你昨天不借我橡皮怎么算？", "反正你也有不对的时候。"]
+        }
+      },
+      innocent: {
+        name: "装无辜型",
+        style: "会把责任说轻，争取旁观者同情，怕规则和证据。",
+        stats: { face: 4, right: 5, emotion: 8, logic: 4, audience: 6, tempo: 4 },
+        fallback: ["装无辜", "否认", "诉诸权威"],
+        lines: {
+          "装无辜": ["我又不是故意的，你干嘛这么凶！", "我只是站了一下，你就一直说我。"],
+          "诉诸权威": ["那就让老师来说，看谁对！"]
+        }
+      },
+      face: {
+        name: "爱面子型",
+        style: "不想承认输，容易贴标签；如果被观众看见，会急着挽回气势。",
+        stats: { face: 7, right: 4, emotion: 6, logic: 5, audience: 6, tempo: 5 },
+        fallback: ["贴标签", "反咬", "终结句"],
+        lines: {
+          "贴标签": ["你就会装厉害！", "你是不是输不起啊？"],
+          "终结句": ["我说不是我的问题就不是。"]
+        }
+      },
+      chatter: {
+        name: "话多型",
+        style: "会连续抛出新话题，逻辑不强，但节奏压迫感高。",
+        stats: { face: 5, right: 4, emotion: 7, logic: 3, audience: 5, tempo: 8 },
+        fallback: ["转移话题", "反咬", "贴标签"],
+        lines: {
+          "转移话题": ["你先解释你刚才为什么那么说！", "还有上次那件事你也没说清楚。"],
+          "反咬": ["你越说越像你自己的问题。"]
+        }
+      },
+      ruleDucker: {
+        name: "躲规则型",
+        style: "会避开规则细节，喜欢说别人也犯过错。",
+        stats: { face: 5, right: 5, emotion: 6, logic: 4, audience: 4, tempo: 6 },
+        fallback: ["转移话题", "装无辜", "反咬"],
+        lines: {
+          "转移话题": ["规则也没说得那么清楚啊。", "别人也这样，为什么只说我？"],
+          "装无辜": ["我以为这样也可以。"]
+        }
+      }
+    };
+
+    const scenarios = [
+      {
+        id: "toy",
+        name: "抢玩具",
+        npcId: "bully",
+        context: "NPC 抢了玩具，还说是自己的。",
+        target: "抓住对方改口，稳住节奏。",
+        opener: "这是我的！你别抢！",
+        placeholder: "例如：你刚刚还说这是你的，现在又说你先看到的，你自己都改口了。",
+        hints: [
+          { label: "抢节奏", text: "你别转移话题，刚刚是你先拿走的。" },
+          { label: "争观众", text: "大家都看到了，我只是想按规则轮流。" },
+          { label: "抓矛盾", text: "你刚才说是你的，现在又说先看到，你自己都改口了。" },
+          { label: "反转责任", text: "如果你没先抢，我也不会来要回来。" }
+        ]
+      },
+      {
+        id: "queue",
+        name: "排队插队",
+        npcId: "innocent",
+        context: "NPC 插到队伍前面，却说自己只是站一下。",
+        target: "用规则和旁观者压住装无辜。",
+        opener: "我又没有插队，我只是站这里一下！",
+        placeholder: "例如：规则是从后面排，你站到前面就影响了后面的人。",
+        hints: [
+          { label: "诉诸规则", text: "规则是从后面排，你站到前面就影响了后面的人。" },
+          { label: "争观众", text: "后面的人都在等，这不是只影响我一个人。" },
+          { label: "稳情绪", text: "我没有凶你，我只是要你回到队伍后面。" },
+          { label: "抓矛盾", text: "你说只是站一下，可你已经排到前面准备拿东西了。" }
+        ]
+      },
+      {
+        id: "homework",
+        name: "小组甩锅",
+        npcId: "ruleDucker",
+        context: "小组作业没做完，NPC 说大家都有责任。",
+        target: "把责任拆清楚，不被一句“大家都有错”带偏。",
+        opener: "干嘛只说我？大家都有责任啊！",
+        placeholder: "例如：大家都有分工，但你负责的那一页到现在还没有交。",
+        hints: [
+          { label: "举例", text: "大家都有分工，但你负责的那一页到现在还没有交。" },
+          { label: "别转移", text: "我现在说的是你负责的部分，不是整个小组谁更辛苦。" },
+          { label: "诉诸规则", text: "我们一开始说好了每个人交自己那一页。" },
+          { label: "终结句", text: "先把你那一页补上，别再把问题推给所有人。" }
+        ]
+      },
+      {
+        id: "blame",
+        name: "比赛甩锅",
+        npcId: "face",
+        context: "队伍比赛输了，NPC 当众怪你拖后腿。",
+        target: "先降温，再把问题从人身指责拉回事实。",
+        opener: "都怪你！不是你我们就赢了！",
+        placeholder: "例如：输不是一个人的事，你说我拖后腿，那请说清楚是哪一步。",
+        hints: [
+          { label: "抢节奏", text: "等一下，输不是一个人的事，你先说清楚是哪一步。" },
+          { label: "反咬", text: "你把责任全推给我，是因为你不想承认自己也失误了。" },
+          { label: "举例", text: "第二轮我得分了，最后一轮是我们配合没接上。" },
+          { label: "稳住", text: "你可以说问题，但别把输赢全变成人身指责。" }
+        ]
+      },
+      {
+        id: "rumor",
+        name: "谣言传话",
+        npcId: "chatter",
+        context: "NPC 到处说你说过某句话，但拿不出证据。",
+        target: "要求证据，阻止对方不断换说法。",
+        opener: "大家都说你就是这么讲的！",
+        placeholder: "例如：谁听到的、什么时候听到的？你说不出来就别继续传。",
+        hints: [
+          { label: "要求证据", text: "谁听到的、什么时候听到的？你说不出来就别继续传。" },
+          { label: "抢节奏", text: "先别说大家，告诉我第一个是谁说的。" },
+          { label: "抓矛盾", text: "你刚才说亲耳听见，现在又说是大家说的，这两个不一样。" },
+          { label: "终结句", text: "没有证据的话，这句话就到这里为止。" }
+        ]
+      }
+    ];
+
     const state = {
+      scenarioId: "toy",
       turn: 1,
       over: false,
       player: { face: 5, right: 5, emotion: 7, logic: 5, audience: 5, tempo: 5 },
@@ -785,15 +961,22 @@
       modelInput: document.querySelector("#modelInput"),
       apiKeyInput: document.querySelector("#apiKeyInput"),
       llmToggle: document.querySelector("#llmToggle"),
+      modelStatus: document.querySelector("#modelStatus"),
+      scenarioGrid: document.querySelector("#scenarioGrid"),
+      scenarioBrief: document.querySelector("#scenarioBrief"),
+      hintChips: document.querySelector("#hintChips"),
       analysisBox: document.querySelector("#analysisBox"),
       log: document.querySelector("#log"),
       playerSpeech: document.querySelector("#playerSpeech"),
       npcSpeech: document.querySelector("#npcSpeech"),
+      npcName: document.querySelector("#npcName"),
       resultBanner: document.querySelector("#resultBanner")
     };
 
     const clamp = value => Math.max(0, Math.min(10, Number(value) || 0));
     const pick = list => list[Math.floor(Math.random() * list.length)];
+    const currentScenario = () => scenarios.find(scenario => scenario.id === state.scenarioId) || scenarios[0];
+    const currentNpc = () => npcProfiles[currentScenario().npcId] || npcProfiles.bully;
 
     function winScore(s) {
       return (s.face * .24) + (s.right * .24) + (s.audience * .18) + (s.tempo * .16) + (s.emotion * .10) + (s.logic * .08);
@@ -827,7 +1010,34 @@
       }).join("");
     }
 
+    function renderScenarioPicker() {
+      el.scenarioGrid.innerHTML = scenarios.map(scenario => {
+        const npc = npcProfiles[scenario.npcId];
+        const active = scenario.id === state.scenarioId ? " active" : "";
+        return `
+          <button class="scenario-card${active}" data-scenario="${scenario.id}">
+            <strong>${scenario.name} · ${npc.name}</strong>
+            <span>${scenario.target}</span>
+          </button>
+        `;
+      }).join("");
+
+      const scenario = currentScenario();
+      const npc = currentNpc();
+      el.scenarioBrief.innerHTML = `<strong>${scenario.context}</strong><br>${npc.style}`;
+      el.playerInput.placeholder = scenario.placeholder;
+      el.npcName.textContent = `NPC：${npc.name}`;
+      renderHints();
+    }
+
+    function renderHints() {
+      el.hintChips.innerHTML = currentScenario().hints.map(hint => (
+        `<button class="chip" data-fill="${escapeHtml(hint.text)}">${escapeHtml(hint.label)}</button>`
+      )).join("");
+    }
+
     function render() {
+      renderScenarioPicker();
       renderMeters(el.playerMeters, state.player, false);
       renderMeters(el.npcMeters, state.npc, true);
       el.playerScore.textContent = `胜势 ${winScore(state.player).toFixed(1)}`;
@@ -884,12 +1094,13 @@
     function chooseNpcMove() {
       const p = state.player;
       const n = state.npc;
+      const npc = currentNpc();
       if (n.right + 1 < p.right) return "转移话题";
       if (n.face + 1 < p.face) return "贴标签";
       if (n.audience < p.audience) return "装无辜";
       if (n.emotion <= 3) return "终结句";
       if (p.tempo > n.tempo) return "反咬";
-      return pick(["反咬", "否认", "转移话题"]);
+      return pick(npc.fallback);
     }
 
     function renderAnalysis(parsed, playerDelta, npcMove) {
@@ -935,7 +1146,7 @@
       const body = {
         model,
         messages,
-        temperature: .55
+        temperature: .85
       };
       if (json) body.response_format = { type: "json_object" };
 
@@ -948,6 +1159,18 @@
       const data = await res.json();
       const content = data.choices?.[0]?.message?.content || data.output_text || "";
       return json ? JSON.parse(content.replace(/^```json|```$/g, "").trim()) : content.trim();
+    }
+
+    function updateModelStatus(message = "") {
+      const usingModel = el.llmToggle.checked;
+      const endpoint = el.endpointInput.value.trim();
+      if (message) {
+        el.modelStatus.textContent = message;
+        return;
+      }
+      el.modelStatus.textContent = usingModel
+        ? `当前：LLM 模式，将请求 ${endpoint || "未配置 endpoint"}。`
+        : "当前：本地句库模式。开启后会调用上面的 endpoint。";
     }
 
     async function parsePlayer(text) {
@@ -967,16 +1190,20 @@
     }
 
     async function generateNpcLine(npcMove, playerText) {
-      if (!el.llmToggle.checked) return pick(npcLines[npcMove] || npcLines["反咬"]);
+      const scenario = currentScenario();
+      const npc = currentNpc();
+      if (!el.llmToggle.checked) return pick(npc.lines[npcMove] || npcLines[npcMove] || npcLines["反咬"]);
       const prompt = `你正在扮演儿童语言争执游戏里的 NPC。只输出 JSON。
-NPC性格：霸道但怕丢面子。当前策略：${npcMove}。
+场景：${scenario.context}
+NPC性格：${npc.name}。性格说明：${npc.style}
+当前策略：${npcMove}。
 要求：台词像小孩说话；每次一句；不要仇恨、严重侮辱、暴力威胁或成人化羞辱；不要决定胜负。
 JSON 字段：line。`;
       const result = await callChat([
         { role: "system", content: prompt },
         { role: "user", content: `玩家刚说：${playerText}` }
       ]);
-      return String(result.line || pick(npcLines[npcMove] || npcLines["反咬"])).slice(0, 80);
+      return String(result.line || pick(npc.lines[npcMove] || npcLines[npcMove] || npcLines["反咬"])).slice(0, 80);
     }
 
     function checkResult() {
@@ -1043,6 +1270,7 @@ JSON 字段：line。`;
       } catch (error) {
         const fallback = heuristicParse(text);
         el.llmToggle.checked = false;
+        updateModelStatus(`模型连接失败，已切回本地句库：${error.message}`);
         addLog("system", "模型连接失败，已切回本地规则", error.message);
         renderAnalysis(fallback, combineEffects(fallback.moves), "否认");
       } finally {
@@ -1052,21 +1280,32 @@ JSON 字段：line。`;
     }
 
     function resetGame() {
+      const scenario = currentScenario();
+      const npc = currentNpc();
       Object.assign(state, {
+        scenarioId: state.scenarioId,
         turn: 1,
         over: false,
         player: { face: 5, right: 5, emotion: 7, logic: 5, audience: 5, tempo: 5 },
-        npc: { face: 6, right: 4, emotion: 7, logic: 4, audience: 5, tempo: 6 },
+        npc: { ...npc.stats },
         lastPlayer: "",
-        lastNpc: "这是我的！你别抢！"
+        lastNpc: scenario.opener
       });
       el.log.innerHTML = "";
       el.analysisBox.innerHTML = `<div class="move-row"><span>等待玩家发言</span><span class="tag">未开始</span></div>`;
       el.resultBanner.classList.remove("show");
       el.playerInput.value = "";
-      addLog("system", "场景", "NPC 抢了玩具，还说是自己的。");
+      document.querySelectorAll(".chip").forEach(chip => chip.classList.remove("active"));
+      addLog("system", "场景", `${scenario.context} 目标：${scenario.target}`);
       render();
     }
+
+    el.scenarioGrid.addEventListener("click", event => {
+      const button = event.target.closest("button[data-scenario]");
+      if (!button) return;
+      state.scenarioId = button.dataset.scenario;
+      resetGame();
+    });
 
     document.querySelector("#hintChips").addEventListener("click", event => {
       const button = event.target.closest("button[data-fill]");
@@ -1098,6 +1337,12 @@ JSON 字段：line。`;
       });
     });
 
+    ["endpointInput", "modelInput", "llmToggle"].forEach(id => {
+      el[id].addEventListener("change", () => updateModelStatus());
+      el[id].addEventListener("input", () => updateModelStatus());
+    });
+
+    updateModelStatus();
     resetGame();
   </script>
 </body>
